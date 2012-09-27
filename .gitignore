@@ -1,0 +1,11 @@
+*~
+*.pyc
+*.pyo
+*.pyo
+*.so
+.*
+!.gitignore
+bigtest/controller.txt
+build/
+!/build/
+

@@ -1,0 +1,315 @@
+#!/usr/bin/python
+#
+# Copyright 2011-2012 Big Switch Networks, Inc. All rights reserved.
+#
+
+# http://www.python.org/dev/peps/pep-0008/#imports
+# Imports should be grouped in the following order:
+#
+# 1. standard library imports
+# 2. related third party imports
+# 3. local application/library specific imports
+
+import errno
+import json
+import logging
+import multiprocessing
+import optparse
+import os
+import pwd
+import re
+import socket
+import subprocess
+import sys
+import time
+import traceback
+
+# no third party imports needed here
+
+import bigtest.controller, bigtest.node, bigtest.tc
+import bigtest.kvm
+import bigtest.linux
+import bigtest
+
+def registervmCommand(args):
+    """register a running vm"""
+    op = optparse.OptionParser(prog="bt registervm")
+    op.set_description(registervmCommand.__doc__)
+    op.set_usage("Usage: %prog -u USERNAME -p PASSWORD --ip IPADDRESS NODENAME")
+    op.disable_interspersed_args()
+    op.add_option("-u", "--username", action="store",
+                  help="log in as USERNAME (default=%default)")
+    op.add_option("-p", "--password", action="store",
+                  help="log in with PASSWORD (default=%default)")
+    op.add_option("--ip", action="store",
+                  help="vm ip address (default=%default)")
+    op.add_option("--image_type", action="store",
+                  help="linux VM image supported")
+    op.set_defaults(username="floodlight",
+                    password="",
+                    ip="0.0.0.0",
+                    image_type="linux")
+    opts, args = op.parse_args(args)
+
+    if not args:
+        op.error("missing NODENAME")
+    if not re.match(r"node\d+$",args[0]):
+        op.error("%s is not a valid NODENAME" % args[0])
+    name = args.pop(0)
+
+    if bigtest.node.getNode(name):
+        raise Exception("Node name %s already used" % name)
+  
+    node=bigtest.controller.KvmNode(name)
+
+    node.register(opts.ip, opts.username, opts.password, opts.image_type)
+
+    node.setVmType(opts.image_type)
+
+    bigtest.controller.setLog("bt registervm")
+
+    print "VM node %s registered" % name    
+
+
+def runtestsCommand(args):
+    """Test harness for integration tests"""
+    op = optparse.OptionParser(prog="bt runtests")
+    op.set_description(runtestsCommand.__doc__)
+    op.set_usage("Usage: %prog [options]")
+    op.add_option("-t", "--testlist", action="store",
+                  help="Test list file (default=%default)")
+    op.add_option("-s", "--seriallist", action="store",
+                  help="Non-parallel capable tests (default=%default)")
+    op.add_option("-f", "--faillist", action="store",
+                  help="File tracking failed tests (default=%default)")
+    op.add_option("-l", "--logdir", action="store",
+                  help="Test log folder (default=%default)")
+    op.add_option("-n", "--nodes-per-test", action="store",
+                  help="Number of controller nodes per test (default=%default). "
+                       "If set to 0, concurrency will be turned off")
+    op.set_defaults(testlist="bigtest/check-tests-floodlight",
+                    seriallist="bigtest/serial-tests",
+                    faillist="failed_check_tests",
+                    logdir="testlogs",
+                    nodes_per_test=2)
+    opts, args = op.parse_args(args)
+
+    if not os.path.exists(opts.testlist):
+        raise Exception("Test list file not found: %s" % opts.testlist)
+
+    if not os.path.exists(opts.seriallist):
+        raise Exception("Serial list file not found: %s" % opts.seriallist)
+
+    # clean up old files
+    bigtest.run(["rm", "-rf", opts.faillist])
+    bigtest.run(["touch", opts.faillist])
+    bigtest.run(["rm", "-rf", opts.logdir])
+    bigtest.run(["mkdir", opts.logdir])
+
+    # get all controller nodes
+    controllers = [n for n in bigtest.node.getAllNodes() if isinstance(n, bigtest.controller.Node)]
+    if len(controllers) < int(opts.nodes_per_test):
+        raise Exception("Need at least %d controller nodes" % int(opts.nodes_per_test))
+
+    print "+++ Running bigtests (%s)\n" % opts.testlist
+    testQueue = multiprocessing.JoinableQueue()
+    serialQueue = multiprocessing.JoinableQueue()
+    failListLock = multiprocessing.Lock()
+
+    # put tests on testQueue and let worker threads pick them up
+    tests = [l.strip() for l in file(opts.testlist).readlines()]
+    serial = [l.strip() for l in file(opts.seriallist).readlines()]
+    for t in tests:
+        if len(t) == 0 or t.isspace() or t.startswith("#"):
+            continue
+        if t in serial:
+            serialQueue.put(t)
+        else:
+            testQueue.put(t)
+
+    # NOTE: Don't call node methods directly, as they might connect to and lock up serial console
+    #       ports. Use subprocess and bt monitor/revert/... wrappers.
+    def launcher(nodes, testfile, logfile, resultQueue):
+        try:
+            names = [n.name() for n in nodes]
+            subprocess.check_call(["python", testfile] + \
+                                  (["--nodes", ",".join(names)] if names else []))
+            resultQueue.put("passed")
+        except subprocess.CalledProcessError, e:
+            resultQueue.put("failed")
+            resultQueue.put(traceback.format_exc())
+
+    def worker(id, nodes, testQueue, serialQueue, logdir, faillist,
+               failListLock):
+        while True:
+            # Get the next test from testQueue / serialQueue
+            queue = testQueue
+            if id == 0 and not serialQueue.empty():
+                queue = serialQueue
+            if queue.empty():
+                break
+            test = queue.get()
+
+            # FIXME: hardcoded bigtest dir
+            testfile = os.path.join("bigtest",
+                                    "%s.py" % test)
+            testdir = os.path.join(logdir, "%s" % test.replace("/", "."))
+            bigtest.run(["mkdir", testdir])
+            logfile = os.path.join(testdir, "%s.log" % test.replace("/", "."))
+            resultQueue = multiprocessing.Queue()
+
+            print "+++ Running %s (on %s)\n" % (test, [n.name() for n in nodes])
+            category = test.split("/")[0]
+
+            p = multiprocessing.Process(target=launcher,
+                args=(nodes, testfile, logfile, resultQueue))
+            p.start()
+            p.join()
+
+            # Handling failed tests
+            testcase_result = "PASSED"
+            if resultQueue.get() == "failed":
+                testcase_result = "FAILED"
+                e = resultQueue.get()
+                if sys.stdout.isatty():
+                    TERM_RED = "\033[31m"
+                    TERM_RESET = "\033[0m"
+                    print "+++ %s%s failed:%s\n%s\n" % \
+                        (TERM_RED, test, TERM_RESET, e)
+                else:
+                    print "+++ %s failed:\n%s\n" % (test, e)
+                failListLock.acquire()
+                try:
+                    f = file(faillist, "a")
+                    f.write("%s\n" % test)
+                    f.close()
+                finally:
+                    failListLock.release()
+
+            # Get controller logs
+            nodesToAdd = []
+            for n in (nodes + nodesToAdd):
+                # set username
+                user = n.username()
+                try:
+                    # get cli from a new node object
+                    node = bigtest.node.getNode(n.name())
+                    cli = node.cli(logging.DEBUG)
+                    cli.gotoBashMode()
+                    nodedir = os.path.join(testdir, n.name())
+                    bigtest.run(["mkdir", nodedir])
+                    scp = False
+                    if user != "":
+                        cli.runCmd("sudo passwd -d %s" % user)
+                        scp = True
+
+                    for l in n.logfiles:
+                        try:
+                            dstfile = os.path.join(nodedir, os.path.basename(l))
+                            if scp:
+                                bigtest.run(["scp", "-q",
+                                             "-o", "UserKnownHostsFile=/dev/null",
+                                             "-o", "StrictHostKeyChecking=no",
+                                             "%s@%s:%s" % (user, n.ipAddress(), l),
+                                             dstfile])
+                            else:
+                                f = file(dstfile, "w")
+                                f.write(cli.runCmd("cat %s" % l))
+                                f.close()
+
+                            # update permissions
+                            bigtest.run(["chmod", "644", dstfile])
+
+                        except Exception, e:
+                            print "Error getting log file %s from %s. Exception: %s" % (l, n.name(), e)
+
+                except Exception, e:
+                    print "Error getting logs from %s. Exception: %s" % (n.name(), e)
+
+            queue.task_done()
+
+    pList = []
+    # Single worker if nodes per test is 0
+    if int(opts.nodes_per_test) == 0:
+        pList.append(multiprocessing.Process(target=worker,
+                                             args=(0, [], testQueue, serialQueue, opts.logdir,
+                                                   opts.faillist, failListLock,)))
+    else:
+        for i in range(0, len(controllers), int(opts.nodes_per_test)):
+            pList.append(multiprocessing.Process(target=worker,
+                                                 args=(i/int(opts.nodes_per_test),
+                                                       controllers[i:i + int(opts.nodes_per_test)],
+                                                       testQueue, serialQueue, opts.logdir,
+                                                       opts.faillist, failListLock,)))
+    for p in pList:
+        p.start()
+
+    testQueue.join()
+    serialQueue.join()
+    for p in pList:
+        p.join()
+    print "+++ All tests finished\n"
+    time.sleep(5)
+
+def showCommand(args):
+    """Show information about nodes and test clusters"""
+    op = optparse.OptionParser(prog="bt show")
+    op.set_description(showCommand.__doc__)
+    op.set_usage("Usage: %prog [options]")
+    opts, args = op.parse_args(args)
+
+    if args:
+        op.error("unexpected arguments: " + " ".join(args))
+
+    confdir = bigtest.confdir()
+    bridges, intfBridges = bigtest.bridgeInfo()
+
+    if "controlbr" in bridges:
+        bid, stp, intf, ipaddr = bridges["controlbr"]
+        print "bridge controlbr:"
+        if ipaddr:
+            print "  ipaddr: %s" % ipaddr
+        print
+
+    nodes = bigtest.node.getAllNodes()
+    for node in nodes:
+        print "%s %s:" % (node.__class__.__name__, node.name())
+        for l in node.dump().getvalue().split("\n")[:-1]:
+            print "  %s" % l
+    if nodes:
+        print
+
+    tcs = bigtest.tc.getAllTestClusters()
+    for tc in tcs:
+        print "test cluster %s:" % tc.name()
+        for l in tc.dump().getvalue().split("\n")[:-1]:
+            print "  %s" % l
+    if tcs:
+        print
+
+
+def main(args):
+    commands = {}
+    help = []
+    for x in sorted(globals()):
+        if not x.endswith("Command"):
+            continue
+        name, func = x[:-7], globals()[x]
+        commands[name] = func
+        if func.__doc__:
+            help.append("  %s - %s" % (name, func.__doc__))
+        else:
+            help.append("  %s" % name)
+    
+    if not args or args[0] in ["help", "-h", "--help"]:
+        print "Usage: bt [command] [options]\n\nCommands:\n" + "\n".join(help)
+        sys.exit(1)
+
+    command = args[0]
+    if command not in commands:
+        sys.stderr.write("Unknown command: %s\n" % command)
+        sys.exit(1)
+    commands[command](args[1:])
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

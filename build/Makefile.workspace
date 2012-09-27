@@ -1,0 +1,69 @@
+PWD := $(shell pwd)
+
+ifndef SOURCE
+$(error SOURCE is unset; re-run setup.sh)
+endif
+#ifndef TOOLS
+#$(error TOOLS is unset; re-run setup.sh)
+#endif
+ifndef VIRTUALENV
+$(error VIRTUALENV is unset; re-run setup.sh)
+endif
+
+ifdef VIRTUAL_ENV
+SHELL = /bin/bash
+else
+SHELL = /bin/bash -c 'source $(VIRTUALENV)/bin/activate; exec /bin/bash -c "$$1"'
+endif
+
+OS = $(shell uname -s)
+
+.PHONY: ve
+
+clean: clean-node-registry
+
+clean-node-registry:
+	rm -rf /var/run/bigtest/*
+
+ve: SHELL = /bin/bash -ilc
+ve:
+	@# All this goop is just to get the right prompt (the normal one
+	@# with '(ve)' prepended) on both Linux and Mac, and swallow
+	@# the exit code from the last interactive command
+	PS1=$$PS1 bash --init-file $(VIRTUALENV)/bin/activate -i || :
+
+check-vms-floodlight:
+	@echo "+++ Running bigtests (check-vms-floodlight)"
+	testfile=$(SOURCE)/bigtest/check-vms-floodlight ;\
+	failfile=failed_check_vms_tests_floodlight ;\
+	logdir=$(PWD)/testlogs-floodlight ;\
+	serialfile=$(SOURCE)/bigtest/serial-tests-floodlight ;\
+	bt runtests -t $$testfile -f $$failfile -l $$logdir -s $$serialfile
+
+check-failed-tests:
+	@echo "+++ Running bigtests (check-failed-tests)"
+	testfile=$(SOURCE)/failed_check_tests ;\
+	failfile=failed_check_failed_tests ;\
+	logdir=$(PWD)/testlogs.retry ;\
+	bt runtests -t $$testfile -f $$failfile -l $$logdir -n 3
+
+register-vms-floodlight:
+	@echo "+++ Registering two VMs needed by check-tests-floodlight"
+	bt registervm -u floodlight -p '' --ip 192.168.1.135 --image_type linux node1
+	bt registervm -u floodlight -p '' --ip 192.168.1.136 --image_type linux node2
+
+check-tests-floodlight:
+	@echo "+++ Running bigtests (check-tests-floodlight)"
+	testfile=$(SOURCE)/bigtest/check-tests-floodlight ;\
+	failfile=failed_check_tests_floodlight ;\
+	logdir=$(PWD)/testlogs-floodlight ;\
+	serialfile=$(SOURCE)/bigtest/serial-tests-floodlight ;\
+	bt runtests -t $$testfile -f $$failfile -l $$logdir -s $$serialfile
+
+check-tests:
+	@echo "+++ Running bigtests (check-tests)"
+	testfile=$(SOURCE)/bigtest/check-tests ;\
+	failfile=failed_check_tests ;\
+	logdir=$(PWD)/testlogs ;\
+	serialfile=$(SOURCE)/bigtest/serial-tests ;\
+	bt runtests -t $$testfile -f $$failfile -l $$logdir -s $$serialfile
