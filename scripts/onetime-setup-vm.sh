@@ -22,13 +22,13 @@ ssh floodlight@$console_ip "git config --global git.user kwanggithub"
 ssh floodlight@$console_ip "git clone git@github.com:kwanggithub/floodlighttest.git"
 
 #still debugging
-VBoxManage controlvm fl-benchtester1-vm pause
-VBoxManage snapshot fl-benchtester1-vm take init
-VBoxManage controlvm fl-benchtester1-vm resume
+VBoxManage controlvm fl-tester1-vm pause
+VBoxManage snapshot fl-tester1-vm take init
+VBoxManage controlvm fl-tester1-vm resume
 
-VBoxManage controlvm fl-benchtester2-vm pause
-VBoxManage snapshot fl-benchtester2-vm take init
-VBoxManage controlvm fl-benchtester2-vm resume
+VBoxManage controlvm fl-tester2-vm pause
+VBoxManage snapshot fl-tester2-vm take init
+VBoxManage controlvm fl-tester2-vm resume
 
 set +x
 

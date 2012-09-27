@@ -21,7 +21,7 @@ d1=$(cd $(dirname $0); pwd)
 # d2=$(cat unzip.out | awk '/ inflating:/ {print $2}'| awk -F/ '{print $1}'|head -1)
 
 # If you already have an unzipped vmdk, you can specify its directory name below
-d2="floodlightcontroller-bench"
+d2="floodlightcontroller-test"
 
 cd $d2
 
@@ -31,56 +31,56 @@ activeif="en1"
 
 # create and register first VM (for console) to VirtualBox
 
-echo "Copying vmdk image for first VM: fl-benchconsole-vm.vmdk"
-cp $d1/$d2/floodlightcontroller.vmdk $d1/$d2/fl-benchconsole-vm.vmdk
+echo "Copying vmdk image for first VM: fl-testconsole-vm.vmdk"
+cp $d1/$d2/floodlightcontroller.vmdk $d1/$d2/fl-testconsole-vm.vmdk
 
-echo "Registering fl-benchconsole-vm"
-echo "fl-benchconsole-vm: cleaning up old record"
-VBoxManage unregistervm fl-benchconsole-vm --delete 2>/dev/null
-rm -f $d1/$d2/fl-benchconsole-vm/fl-benchconsole-vm.vbox
-echo "fl-benchconsole-vm: VM create"
-VBoxManage createvm --name fl-benchconsole-vm --basefolder $d1/$d2 --register
-echo "fl-benchconsole-vm: VM setup"
-VBoxManage modifyvm fl-benchconsole-vm --ostype Ubuntu --rtcuseutc on --memory 2048 --vram 16 --hwvirtexexcl on --ioapic on --uart1 0x3f8 4 --uartmode1 disconnected --nic1 bridged --nictype1 virtio --bridgeadapter1 $activeif
+echo "Registering fl-testconsole-vm"
+echo "fl-testconsole-vm: cleaning up old record"
+VBoxManage unregistervm fl-testconsole-vm --delete 2>/dev/null
+rm -f $d1/$d2/fl-testconsole-vm/fl-testconsole-vm.vbox
+echo "fl-testconsole-vm: VM create"
+VBoxManage createvm --name fl-testconsole-vm --basefolder $d1/$d2 --register
+echo "fl-testconsole-vm: VM setup"
+VBoxManage modifyvm fl-testconsole-vm --ostype Ubuntu --rtcuseutc on --memory 2048 --vram 16 --hwvirtexexcl on --ioapic on --uart1 0x3f8 4 --uartmode1 disconnected --nic1 bridged --nictype1 virtio --bridgeadapter1 $activeif
 #TODO:  add host only network adaptor
-echo "fl-benchconsole-vm: VM storage"
-VBoxManage storagectl fl-benchconsole-vm --name ide --add ide
-ln -nf $d1/$d2/fl-benchconsole-vm.vmdk $d1/$d2/fl-benchconsole-vm/fl-benchconsole-vm.vmdk
-VBoxManage storageattach fl-benchconsole-vm --storagectl ide --port 0 --device 0 --type hdd --medium $d1/$d2/fl-benchconsole-vm/fl-benchconsole-vm.vmdk 
+echo "fl-testconsole-vm: VM storage"
+VBoxManage storagectl fl-testconsole-vm --name ide --add ide
+ln -nf $d1/$d2/fl-testconsole-vm.vmdk $d1/$d2/fl-testconsole-vm/fl-testconsole-vm.vmdk
+VBoxManage storageattach fl-testconsole-vm --storagectl ide --port 0 --device 0 --type hdd --medium $d1/$d2/fl-testconsole-vm/fl-testconsole-vm.vmdk 
 
 # create and register second VM (for controller/mininet #1)
 
-echo "Copying vmdk image for second VM: fl-benchtester1-vm.vmdk"
-cp $d1/$d2/floodlightcontroller.vmdk $d1/$d2/fl-benchtester1-vm.vmdk
-echo "Registering fl-benchtester1-vm" 
-echo "fl-benchtester1-vm: cleaning up old record"
-VBoxManage unregistervm fl-benchtester1-vm --delete 2>/dev/null
-rm -f $d1/$d2/fl-benchtester1-vm/fl-benchtester1-vm.vbox
-echo "fl-benchtester1-vm: VM create"
-VBoxManage createvm --name fl-benchtester1-vm --basefolder $d1/$d2 --register
-echo "fl-benchtester1-vm: VM setup"
-VBoxManage modifyvm fl-benchtester1-vm --ostype Ubuntu --rtcuseutc on --memory 2048 --vram 16 --hwvirtexexcl on --ioapic on --uart1 0x3f8 4 --uartmode1 disconnected --nic1 bridged  --nictype1 virtio --bridgeadapter1 $activeif
-echo "fl-benchtester1-vm: VM storage"
-VBoxManage storagectl fl-benchtester1-vm --name ide --add ide
-ln -nf $d1/$d2/fl-benchtester1-vm.vmdk $d1/$d2/fl-benchtester1-vm/fl-benchtester1-vm.vmdk
-VBoxManage storageattach fl-benchtester1-vm --storagectl ide --port 0 --device 0 --type hdd --medium $d1/$d2/fl-benchtester1-vm/fl-benchtester1-vm.vmdk
+echo "Copying vmdk image for second VM: fl-tester1-vm.vmdk"
+cp $d1/$d2/floodlightcontroller.vmdk $d1/$d2/fl-tester1-vm.vmdk
+echo "Registering fl-tester1-vm" 
+echo "fl-tester1-vm: cleaning up old record"
+VBoxManage unregistervm fl-tester1-vm --delete 2>/dev/null
+rm -f $d1/$d2/fl-tester1-vm/fl-tester1-vm.vbox
+echo "fl-tester1-vm: VM create"
+VBoxManage createvm --name fl-tester1-vm --basefolder $d1/$d2 --register
+echo "fl-tester1-vm: VM setup"
+VBoxManage modifyvm fl-tester1-vm --ostype Ubuntu --rtcuseutc on --memory 2048 --vram 16 --hwvirtexexcl on --ioapic on --uart1 0x3f8 4 --uartmode1 disconnected --nic1 bridged  --nictype1 virtio --bridgeadapter1 $activeif
+echo "fl-tester1-vm: VM storage"
+VBoxManage storagectl fl-tester1-vm --name ide --add ide
+ln -nf $d1/$d2/fl-tester1-vm.vmdk $d1/$d2/fl-tester1-vm/fl-tester1-vm.vmdk
+VBoxManage storageattach fl-tester1-vm --storagectl ide --port 0 --device 0 --type hdd --medium $d1/$d2/fl-tester1-vm/fl-tester1-vm.vmdk
 
 # create and register third VM (for controller/mininet #2)
-echo "Copying vmdk image for second VM: fl-benchtester2-vm.vmdk"
-cp $d1/$d2/floodlightcontroller.vmdk $d1/$d2/fl-benchtester2-vm.vmdk
+echo "Copying vmdk image for second VM: fl-tester2-vm.vmdk"
+cp $d1/$d2/floodlightcontroller.vmdk $d1/$d2/fl-tester2-vm.vmdk
 
-echo "Registering fl-benchtester2-vm" 
-echo "fl-benchtester2-vm: cleaning up old record"
-VBoxManage unregistervm fl-benchtester2-vm --delete 2>/dev/null
-rm -f $d1/$d2/fl-benchtester2-vm/fl-benchtester2-vm.vbox
-echo "fl-benchtester2-vm: VM create"
-VBoxManage createvm --name fl-benchtester2-vm --basefolder $d1/$d2 --register
-echo "fl-benchtester2-vm: VM setup"
-VBoxManage modifyvm fl-benchtester2-vm --ostype Ubuntu --rtcuseutc on --memory 2048 --vram 16 --hwvirtexexcl on --ioapic on --uart1 0x3f8 4 --uartmode1 disconnected --nic1 bridged --nictype1 virtio --bridgeadapter1 $activeif
-echo "fl-benchtester2-vm: VM storage"
-VBoxManage storagectl fl-benchtester2-vm --name ide --add ide
-ln -nf $d1/$d2/fl-benchtester2-vm.vmdk $d1/$d2/fl-benchtester2-vm/fl-benchtester2-vm.vmdk
-VBoxManage storageattach fl-benchtester2-vm --storagectl ide --port 0 --device 0 --type hdd --medium $d1/$d2/fl-benchtester2-vm/fl-benchtester2-vm.vmdk
+echo "Registering fl-tester2-vm" 
+echo "fl-tester2-vm: cleaning up old record"
+VBoxManage unregistervm fl-tester2-vm --delete 2>/dev/null
+rm -f $d1/$d2/fl-tester2-vm/fl-tester2-vm.vbox
+echo "fl-tester2-vm: VM create"
+VBoxManage createvm --name fl-tester2-vm --basefolder $d1/$d2 --register
+echo "fl-tester2-vm: VM setup"
+VBoxManage modifyvm fl-tester2-vm --ostype Ubuntu --rtcuseutc on --memory 2048 --vram 16 --hwvirtexexcl on --ioapic on --uart1 0x3f8 4 --uartmode1 disconnected --nic1 bridged --nictype1 virtio --bridgeadapter1 $activeif
+echo "fl-tester2-vm: VM storage"
+VBoxManage storagectl fl-tester2-vm --name ide --add ide
+ln -nf $d1/$d2/fl-tester2-vm.vmdk $d1/$d2/fl-tester2-vm/fl-tester2-vm.vmdk
+VBoxManage storageattach fl-tester2-vm --storagectl ide --port 0 --device 0 --type hdd --medium $d1/$d2/fl-tester2-vm/fl-tester2-vm.vmdk
 
 echo "Your VMs are now set up in VirtualBox and ready for use."
 echo " "

@@ -29,23 +29,23 @@ cd $djar; ant
 
 # restore tester VMs to initial snapshot - this step is critical between check-tests-floodlight 
 # runs to avoid stale VM states causing test failures
-VBoxManage controlvm fl-benchtester1-vm poweroff
-VBoxManage controlvm fl-benchtester2-vm poweroff
+VBoxManage controlvm fl-tester1-vm poweroff
+VBoxManage controlvm fl-tester2-vm poweroff
 
 # need sleep to allow time for poweroff before restore
 sleep 5
 
-VBoxManage snapshot fl-benchtester1-vm restore init
-VBoxManage startvm fl-benchtester1-vm
+VBoxManage snapshot fl-tester1-vm restore init
+VBoxManage startvm fl-tester1-vm
 
-VBoxManage snapshot fl-benchtester2-vm restore init
-VBoxManage startvm fl-benchtester2-vm
+VBoxManage snapshot fl-tester2-vm restore init
+VBoxManage startvm fl-tester2-vm
 
 # need sleep to allow time for start complete before copy      
 sleep 10
 
 # stop default floodlight on VM and copy your jar to tester1 and tester2
-echo "Copying floodlight.jar to fl-benchtester1-vm and fl-benchtester2-vm"
+echo "Copying floodlight.jar to fl-tester1-vm and fl-tester2-vm"
 ssh -f floodlight@$tester1_ip "sudo service floodlight stop"
 ssh -f floodlight@$tester2_ip "sudo service floodlight stop"
 
@@ -55,7 +55,7 @@ scp -q $djar/target/floodlight.jar floodlight@$tester2_ip:/opt/floodlight/floodl
 # Re-launch floodlight as service (with config options at each VM's /etc/init)
 ssh -f floodlight@$tester1_ip "sudo service floodlight start"
 ssh -f floodlight@$tester2_ip "sudo service floodlight start"
-echo "+++ bench setup complete. floodlight running on tester VMs"
+echo "+++ Update complete. floodlight running on tester VMs"
 
 # Re-launch floodlight at command line
 #ssh -f floodlight@$tester1_ip "java -jar /opt/floodlight/floodlight/floodlight.jar > /dev/null &"
