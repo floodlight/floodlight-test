@@ -2,11 +2,12 @@
 
 set -x
 
-console_ip="192.168.1.75"
-tester1_ip="192.168.1.76"
-tester2_ip="192.168.1.77"
+console_ip="192.168.1.111"
+tester1_ip="192.168.1.110"
+tester2_ip="192.168.1.116"
 
 # configure console VM with needed dependencies
+ssh floodlight@$console_ip "sudo apt-get update"
 ssh floodlight@$console_ip "sudo apt-get install python-pip"
 ssh floodlight@$console_ip "sudo pip install virtualenv"
 ssh floodlight@$console_ip "sudo apt-get install git" 
