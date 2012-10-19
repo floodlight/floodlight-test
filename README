@@ -1,0 +1,11 @@
+Floodlight-Test An Apache licensed, python based framework for
+  developing and executing integration tests with the Floodlight
+  OpenFlow controller
+
+Floodlight-Test is a python based integration test framework developed
+by Big Switch Networks, Inc. It is available under the Apache 2.0
+license.
+
+For documentation, forums, issue tracking and more visit:
+
+    http://floodlight.openflowhub.org
