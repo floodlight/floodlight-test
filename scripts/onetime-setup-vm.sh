@@ -13,14 +13,8 @@ ssh floodlight@$console_ip "sudo pip install virtualenv"
 ssh floodlight@$console_ip "sudo apt-get install git" 
 ssh floodlight@$console_ip "sudo apt-get install emacs"
 
-# REMOVE - setup private git credential
-scp ~/.ssh/id_rsa floodlight@$console_ip:.ssh/
-ssh floodlight@$console_ip "git config --global git.user kwanggithub"
-
-# checkout floodlighttest suite from github 
-# TODO: setup GIT_SSH to pass "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
-#       before this will work
-ssh floodlight@$console_ip "git clone git@github.com:kwanggithub/floodlighttest.git"
+# checkout floodlight-test suite from github 
+ssh floodlight@$console_ip "git clone git://github.com/floodlight/floodlight-test.git"
 
 #still debugging
 VBoxManage controlvm fl-tester1-vm pause
