@@ -42,6 +42,9 @@ cli2 = env.node2().cli()
 log("Restarting Floodlight with Quantum config")
 floodlightLoadQuantumConfig(cli)
 
+cli.gotoBashMode()
+cli.runCmd("sudo mn -c")
+
 cli2.gotoBashMode()
 cli2.gotoMininetMode("--controller=remote --ip=%s --mac --topo=linear,5" % controller.ipAddress())
 
@@ -62,5 +65,9 @@ verifyNoPing(cli2, 'h7', 'h9')
 verifyPing(cli2, 'h10', 'h8')
 verifyPing(cli2, 'h6', 'h10')
 verifyPing(cli2, 'h8', 'h10')
+
+# cleanup after test to resume normal floodlight
+cli.gotoBashMode()
+cli.runCmd("sudo mn -c;rm /opt/floodlight/floodlight/feature/quantum;sudo service floodlight stop; sudo service floodlight start")
 
 env.endTest()

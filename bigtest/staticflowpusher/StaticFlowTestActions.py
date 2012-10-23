@@ -38,8 +38,8 @@ actions = [
     ['set-vlan-id=200', "{u'length': 8, u'virtualLanIdentifier': 200, u'type': u'SET_VLAN_ID', u'lengthU': 8}" ],
     ['set-vlan-priority=5', "{u'length': 8, u'type': u'SET_VLAN_PCP', u'lengthU': 8, u'virtualLanPriorityCodePoint': 5}" ],
     ['strip-vlan', "{u'length': 8, u'type': u'STRIP_VLAN', u'lengthU': 8}" ],
-    ['set-src-mac=00:11:22:33:44:55', "{u'dataLayerAddress': u'ABEiM0RV', u'length': 16, u'type': u'SET_DL_SRC', u'lengthU': 16}" ],
-    ['set-dst-mac=ff:ee:dd:cc:bb:aa', "{u'dataLayerAddress': u'/+7dzLuq', u'length': 16, u'type': u'SET_DL_DST', u'lengthU': 16}" ],
+    ['set-src-mac=00:11:22:33:44:55', "{u'dataLayerAddress': u'00:11:22:33:44:55', u'length': 16, u'type': u'SET_DL_SRC', u'lengthU': 16}" ],
+    ['set-dst-mac=ff:ee:dd:cc:bb:aa', "{u'dataLayerAddress': u'ff:ee:dd:cc:bb:aa', u'length': 16, u'type': u'SET_DL_DST', u'lengthU': 16}" ],
     ['set-src-ip=1.2.3.4', "{u'type': u'SET_NW_SRC', u'length': 8, u'networkAddress': 16909060, u'lengthU': 8}" ],
     ['set-dst-ip=254.253.255.0', "{u'type': u'SET_NW_DST', u'length': 8, u'networkAddress': -16908544, u'lengthU': 8}" ],
     ['set-tos-bits=0x07', "{u'networkTypeOfService': 7, u'type': u'SET_NW_TOS', u'length': 8, u'lengthU': 8}" ],
@@ -53,7 +53,6 @@ controller.waitForSwitches([dpid])
 log("Verify that there are no flows")
 if node1type == "linux":
     restout = rest('core/switch/%s/flow/json' % dpid)
-    print "flows %s" % restout[dpid]
 bigtest.Assert(restout[dpid] == [])
 
 # creates a static flow that is sued by the Floodlight REST API
@@ -71,6 +70,8 @@ def assert_action_push(idx, sw, action_inp, action_outp):
     # verify in config and active flows
     if node1type == "linux":
         flows = controller.restGet('core/switch/%s/flow/json' % sw)
+        print flows
+        print str(action_outp)
         bigtest.Assert(str(flows[sw][0]['actions'][0]) == str(action_outp))
 
 for i in range(len(actions)):

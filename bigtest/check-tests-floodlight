@@ -8,3 +8,4 @@ forwarding/ForwardingNoPath
 rest/FloodlightRestTest1
 staticflowpusher/StaticFlowTestActions
 openstack/FloodlightQuantumTest
+firewall/FloodlightFirewallTest
