@@ -16,6 +16,11 @@ log = bigtest.log.info
 controllerNode = env.node1()
 mininetNodeCli = env.node2().cli()
 
+mininetNodeCli.runCmd("rm -f square.py")
+with open("bigtest/square.py", "r") as topofile:
+    for line in topofile:
+        mininetNodeCli.runCmd("echo \'%s\' >> square.py" % (line[:-1], ))
+
 # Startup the controller with the custom square topology
 mininetNodeCli.gotoMininetMode("--controller=remote --ip=%s --custom square.py --topo=square" % controllerNode.ipAddress())
 
